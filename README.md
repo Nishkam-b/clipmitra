@@ -1,39 +1,70 @@
 # ClipMitra AI
 
-Turn long videos into 3–4 vertical, captioned, ready-to-post clips — fully local, using open-source models.
+Turn long talking-head videos and podcasts into **3–4 vertical, captioned, ready-to-post clips** for
+Instagram Reels, YouTube Shorts and TikTok — **entirely on your own computer**, for free.
 
-**Status:** Phase 4 done — upload → transcribe → AI highlights → speaker-tracked 9:16 clips with
-word-by-word Hinglish captions → editor (trim, caption styles, word fixes, live preview) → export.
-Phase 5 testing done: 15/15 matrix cases, milestone met — see [docs/TEST_REPORT.md](docs/TEST_REPORT.md)
-and [PROJECT_PLAN.md](PROJECT_PLAN.md).
+**Open the app:** https://nishtek.in/clipmitra
 
-## Quick start (Windows)
+- Upload a video or **paste a link** (YouTube, Instagram, Facebook, X, Vimeo…)
+- AI finds the best moments, follows the speaker's face into a 9:16 frame and adds word-by-word captions
+- Hindi speech is captioned in **Roman Hinglish** ("itna aasan nahi tha")
+- Edit any clip: trim, 4 caption styles, 9 fonts, colours, fix misheard words — then download MP4s
 
-```powershell
-./scripts/setup.ps1          # one-time: Python 3.12 venv, pip + npm deps
-ollama pull qwen3:4b         # one-time: local LLM (~2.5 GB)
-./scripts/dev-backend.ps1    # API on http://127.0.0.1:8000
-./scripts/dev-frontend.ps1   # UI  on http://localhost:3000
-```
+Your videos never leave your machine. The page at nishtek.in only shows the interface; all AI work
+(Whisper, Qwen3 via Ollama, MediaPipe, FFmpeg) runs in the ClipMitra engine on your PC.
 
-Verify the AI stack: `backend/.venv/Scripts/python scripts/verify_stack.py`
+## Install (Windows 10/11)
 
-The UI is served under `/clipmitra` (dev: http://localhost:3000/clipmitra/).
-
-## Live: https://nishtek.in/clipmitra
-
-The interface is a static site on GitHub Pages (repo `Nishkam-b/nishkam-b.github.io`, folder `clipmitra/`).
-All processing still runs on the visitor's own computer: the page talks to the engine at `http://127.0.0.1:8000`.
-
-- Start Ollama and `scripts\dev-backend.ps1`, then open the live URL. Chrome/Edge ask once to allow
-  **local network access** for nishtek.in — choose Allow (the page explains how if it was blocked).
-- The engine only accepts requests from nishtek.in and localhost; other websites get 403.
-
-Publish a new version:
+Open **PowerShell** and run:
 
 ```powershell
-cd frontend; npm run build          # static export -> frontend/out
-# replace clipmitra/ in a clone of Nishkam-b/nishkam-b.github.io with frontend/out, commit, push
+irm https://raw.githubusercontent.com/Nishkam-b/clipmitra/main/install.ps1 | iex
 ```
 
-Docs: [dependencies](docs/DEPENDENCIES.md) · [working rules](CLAUDE.md)
+It installs FFmpeg, Ollama, Deno and uv (via winget), sets up the engine in `%LOCALAPPDATA%\ClipMitra`,
+downloads the AI models (~4 GB) and adds a **ClipMitra** shortcut to your Desktop and Start menu.
+Run it again any time to update — your videos and clips are kept.
+
+**Requirements:** 64-bit Windows 10/11, ~8 GB free disk. An NVIDIA GPU with 6 GB+ VRAM is recommended;
+without one ClipMitra still works on the CPU, several times slower.
+
+## Use
+
+1. Double-click **ClipMitra** (starts the engine and opens https://nishtek.in/clipmitra).
+2. The first time, your browser asks to allow the site to access apps on this device — choose **Allow**.
+3. Upload a video (up to 5 minutes) or paste a link and tick *"I own this video or have permission"*.
+4. Click **Generate Clips**, then edit and download.
+
+Only fetch videos you own or have permission to use.
+
+**Stop the engine:** `%LOCALAPPDATA%\ClipMitra\app\scripts\stop_clipmitra.ps1`
+**Uninstall:** delete `%LOCALAPPDATA%\ClipMitra` and the ClipMitra shortcuts (Ollama, FFmpeg, Deno and uv
+can be removed from *Settings → Apps*).
+
+## How it works
+
+| Stage | Local model / tool |
+|---|---|
+| Transcription with word timestamps | faster-whisper large-v3-turbo (GPU, CPU fallback) |
+| Highlight selection | Qwen3-4B via Ollama |
+| Speaker tracking → 9:16 crop | MediaPipe Face Landmarker |
+| Captions + rendering | libass + FFmpeg (NVENC when available) |
+| Link fetching | yt-dlp |
+
+Test results on an RTX 4050 Laptop (6 GB): a ~5-minute video becomes 4 tracked, captioned clips in about
+50 seconds. See [docs/TEST_REPORT.md](docs/TEST_REPORT.md).
+
+## Developers
+
+```powershell
+./scripts/setup.ps1          # Python 3.12 venv + packages, frontend npm deps
+ollama pull qwen3:4b
+./scripts/dev-backend.ps1    # engine on http://127.0.0.1:8000
+./scripts/dev-frontend.ps1   # UI on http://localhost:3000/clipmitra/
+backend/.venv/Scripts/python -m pytest backend/tests
+```
+
+The UI is a static Next.js export (`frontend/out`) published to the `clipmitra/` folder of the
+nishtek.in GitHub Pages site. The engine only accepts requests from nishtek.in and localhost.
+
+Docs: [project plan](PROJECT_PLAN.md) · [dependencies](docs/DEPENDENCIES.md) · [test report](docs/TEST_REPORT.md)

@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")  # harmless on Windows, just noisy
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(BACKEND))
 os.chdir(BACKEND)  # settings read backend/.env

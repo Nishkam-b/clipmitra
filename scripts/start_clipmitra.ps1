@@ -1,6 +1,7 @@
 # Starts Ollama and the ClipMitra engine in the background, then opens the app in the browser.
 # Used by the "ClipMitra" shortcut that install.ps1 creates. Safe to run when already running.
-param([string]$Url = "https://nishtek.in/clipmitra/")
+param([string]$Url = "https://nishtek.in/clipmitra/", [switch]$NoBrowser)
+$env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"   # harmless on Windows; keeps the engine log readable
 $app = Split-Path -Parent $PSScriptRoot          # ...\ClipMitra\app
 $backend = Join-Path $app "backend"
 $logDir = Join-Path (Split-Path -Parent $app) "data\logs"   # ...\ClipMitra\data\logs
@@ -24,4 +25,4 @@ if (-not (Up "http://127.0.0.1:8000/api/health")) {
 }
 
 # 3. Open the app (the page connects to the engine on this computer)
-Start-Process $Url
+if (-not $NoBrowser) { Start-Process $Url }

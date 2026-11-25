@@ -8,6 +8,22 @@ import { MonitorIcon, Spinner } from "./icons";
  * The web UI is hosted (nishtek.in/clipmitra) but all processing happens on the visitor's own
  * computer. Show the upload box only when the local ClipMitra engine answers.
  */
+const REPO_URL = "https://github.com/Nishkam-b/clipmitra";
+const INSTALL_CMD = "irm https://raw.githubusercontent.com/Nishkam-b/clipmitra/main/install.ps1 | iex";
+
+function CopyCommand({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="mt-2 flex items-stretch overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap px-3 py-2 text-xs text-zinc-800">{text}</code>
+      <button type="button" onClick={() => { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+              className="shrink-0 border-l border-zinc-200 px-3 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 /**
  * Chrome/Edge (Local Network Access) ask the user before a public site like nishtek.in may talk to
  * apps on their own computer. Returns "granted" | "prompt" | "denied" | "unsupported".
@@ -74,13 +90,23 @@ export function EngineGate({ children }: { children: React.ReactNode }) {
               captions) runs locally on your GPU. This page connects to the ClipMitra engine on this computer,
               and it isn&apos;t running right now.
             </p>
-            <ol className="mt-5 space-y-2 text-sm text-zinc-700">
-              <li><b>1.</b> Start Ollama.</li>
-              <li><b>2.</b> Start the engine: <code className="rounded bg-zinc-100 px-1.5 py-0.5">scripts\dev-backend.ps1</code></li>
-              <li><b>3.</b> Keep this page open — it connects automatically. If your browser asks to allow access to devices on your local network, choose <b>Allow</b>.</li>
-            </ol>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl bg-violet-50/70 p-4">
+                <div className="text-sm font-semibold text-zinc-900">Already installed?</div>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Double-click <b>ClipMitra</b> on your Desktop. This page connects by itself — if your browser
+                  asks to allow access to apps on this device, choose <b>Allow</b>.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-zinc-50 p-4">
+                <div className="text-sm font-semibold text-zinc-900">First time? Install it (free)</div>
+                <p className="mt-1 text-sm text-zinc-600">Open <b>PowerShell</b> and paste:</p>
+                <CopyCommand text={INSTALL_CMD} />
+              </div>
+            </div>
             <p className="mt-5 text-xs text-zinc-400">
-              ClipMitra is in private beta. Needs Windows with an NVIDIA GPU (6 GB+), FFmpeg and Ollama.
+              Windows 10/11 · NVIDIA GPU with 6 GB+ recommended (works on CPU, slower) · about 8 GB of disk ·{" "}
+              <a href={REPO_URL} target="_blank" rel="noreferrer" className="underline hover:text-violet-700">source &amp; guide</a>
             </p>
           </div>
         </div>
