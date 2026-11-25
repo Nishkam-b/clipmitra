@@ -68,3 +68,10 @@ The UI is a static Next.js export (`frontend/out`) published to the `clipmitra/`
 nishtek.in GitHub Pages site. The engine only accepts requests from nishtek.in and localhost.
 
 Docs: [project plan](PROJECT_PLAN.md) · [dependencies](docs/DEPENDENCIES.md) · [test report](docs/TEST_REPORT.md)
+
+## License
+
+ClipMitra's code is released under the [MIT License](LICENSE). Bundled caption fonts are Google Fonts under the
+SIL Open Font License ([backend/assets/fonts/licenses](backend/assets/fonts/licenses)). The AI models are
+downloaded at install time under their own licenses: Whisper large-v3-turbo (MIT), Qwen3-4B (Apache-2.0),
+MediaPipe Face Landmarker (Apache-2.0). FFmpeg, Ollama, yt-dlp and Deno are installed separately.
