@@ -76,6 +76,15 @@ $ollama = if (Has ollama) { (Get-Command ollama).Source } else { Join-Path $env:
 if (-not (Has uv)) { throw "uv was installed but isn't on PATH yet. Close this window, open a new PowerShell and run the installer again." }
 
 # ---------------------------------------------------------------- 2. app files
+# A running engine keeps files in the app folder open, which would block the update.
+Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($_.OwningProcess)"
+  if ($proc.CommandLine -match "uvicorn\s+app\.main:app") {
+    Stop-Process -Id $proc.ProcessId -Force
+    Ok "stopped the running ClipMitra engine for the update"
+  }
+}
+Start-Sleep -Milliseconds 500
 Step "Downloading ClipMitra"
 $app = Join-Path $InstallRoot "app"
 $data = Join-Path $InstallRoot "data"
