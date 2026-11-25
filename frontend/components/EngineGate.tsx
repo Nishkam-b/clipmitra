@@ -73,6 +73,11 @@ export function EngineGate({ children }: { children: React.ReactNode }) {
           <li><b>2.</b> Set <b>Local network access</b> (or “Apps on this device”) to <b>Allow</b>.</li>
           <li><b>3.</b> Reload this page.</li>
         </ol>
+        <div className="mt-5 max-w-xl rounded-2xl bg-white p-4">
+          <div className="text-sm font-semibold text-zinc-900">Haven&apos;t installed ClipMitra yet? It&apos;s free</div>
+          <p className="mt-1 text-sm text-zinc-600">Open <b>PowerShell</b> and paste:</p>
+          <CopyCommand text={INSTALL_CMD} />
+        </div>
       </section>
     );
   }
