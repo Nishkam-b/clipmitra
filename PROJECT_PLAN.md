@@ -135,8 +135,9 @@ tracking_speakers → creating_captions → rendering_clips → completed | fail
   (403) — browsers allow blind cross-site uploads to 127.0.0.1 otherwise.
 - Verified: static build served under /clipmitra against the engine (upload page, projects, job, editor,
   deep-link reload, auto-reconnect, offline screen). On the live domain, Chrome 156 enforces Local Network
-  Access: needs the visitor's one-time Allow. The in-app test browser can't grant it, so the live
-  connection must be confirmed once in a normal Chrome/Edge. The page shows fix-it steps when blocked.
+  Access: needs the visitor's one-time Allow. The page shows fix-it steps when blocked.
+- ✅ Live connection confirmed by the user in their own browser (2026-11-25): nishtek.in/clipmitra →
+  Allow → connected to the local engine.
 
 ## 6. Deferred / out of scope for MVP
 - "Paste video link" (shown in the mockup): **deferred.** Downloading from YouTube etc. needs rights/authorisation; MVP = direct upload only.
