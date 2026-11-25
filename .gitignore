@@ -30,3 +30,6 @@ node_modules/
 out/
 *.tsbuildinfo
 next-env.d.ts
+
+# Inno Setup build output (published as a GitHub release asset)
+installer/Output/

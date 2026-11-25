@@ -18,9 +18,19 @@ param(
   [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "ClipMitra"),
   [string]$Source = "https://github.com/Nishkam-b/clipmitra/archive/refs/heads/main.zip",  # or a local .zip/folder
   [switch]$SkipModels,      # tests: don't download the large models
-  [switch]$NoShortcuts
+  [switch]$NoShortcuts,
+  [switch]$FromSetup        # run by ClipMitra-Setup.exe: keep the window open on errors
 )
 $ErrorActionPreference = "Stop"
+$Host.UI.RawUI.WindowTitle = "Installing ClipMitra AI"
+trap {
+  Write-Host "`nClipMitra could not be installed:" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host "`nCheck your internet connection and run the installer again. If it keeps failing, see"
+  Write-Host "https://github.com/Nishkam-b/clipmitra#install-windows-1011"
+  if ($FromSetup) { Read-Host "`nPress Enter to close" }
+  exit 1
+}
 $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is 10x faster without the progress bar
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Magenta }
@@ -166,6 +176,7 @@ if (-not $NoShortcuts) {
   Ok "Desktop + Start menu: ClipMitra"
 }
 
+if ($FromSetup) { Step "Done! You can close this window." ; exit 0 }
 Step "Done!"
 Write-Host "    Double-click 'ClipMitra' on your Desktop. It opens https://nishtek.in/clipmitra"
 Write-Host "    The first time, your browser asks to allow access to apps on this device: choose Allow."
