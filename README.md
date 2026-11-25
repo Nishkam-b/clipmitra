@@ -1,6 +1,6 @@
 # ClipMitra AI
 
-Turn long talking-head videos and podcasts into **3–4 vertical, captioned, ready-to-post clips** for
+Turn talking-head videos and podcasts **up to 30 minutes** long into **3–8 vertical, captioned, ready-to-post clips** for
 Instagram Reels, YouTube Shorts and TikTok — **entirely on your own computer**, for free.
 
 **Open the app:** https://nishtek.in/clipmitra
@@ -38,7 +38,7 @@ without one ClipMitra still works on the CPU, several times slower.
 
 1. Double-click **ClipMitra** (starts the engine and opens https://nishtek.in/clipmitra).
 2. The first time, your browser asks to allow the site to access apps on this device — choose **Allow**.
-3. Upload a video (up to 5 minutes) or paste a link and tick *"I own this video or have permission"*.
+3. Upload a video (up to 30 minutes, 8 GB) or paste a link and tick *"I own this video or have permission"*.
 4. Click **Generate Clips**, then edit and download.
 
 Only fetch videos you own or have permission to use.
@@ -58,7 +58,7 @@ can be removed from *Settings → Apps*).
 | Link fetching | yt-dlp |
 
 Test results on an RTX 4050 Laptop (6 GB): a ~5-minute video becomes 4 tracked, captioned clips in about
-50 seconds. See [docs/TEST_REPORT.md](docs/TEST_REPORT.md).
+50 seconds; a 28-minute multi-camera podcast becomes 7 clips in under 3 minutes. See [docs/TEST_REPORT.md](docs/TEST_REPORT.md).
 
 ## Developers
 

@@ -25,8 +25,8 @@ class Settings(BaseSettings):
 
     # --- upload limits ---
     allowed_extensions: tuple[str, ...] = (".mp4", ".mov")
-    max_upload_bytes: int = 2 * 1024**3  # 2 GB
-    max_duration_seconds: float = 300.0  # start with 5 minutes
+    max_upload_bytes: int = 8 * 1024**3  # 8 GB: a 30-min 1080p phone video is often 3-5 GB
+    max_duration_seconds: float = 1800.0  # 30 minutes
     duration_tolerance_seconds: float = 1.0
 
     # --- tools ---
@@ -49,7 +49,10 @@ class Settings(BaseSettings):
     # --- clip selection ---
     clip_min_seconds: float = 20.0
     clip_max_seconds: float = 60.0
-    clips_target: int = 4
+    clips_target: int = 4                   # clips for short videos (<= 5 min)
+    clips_max: int = 8                      # long videos get more clips, up to this many
+    highlight_window_seconds: float = 480.0 # long transcripts are split into ~8-min windows for the LLM
+    highlight_window_overlap: float = 60.0
 
     # --- reframing + captions ---
     track_fps: float = 5.0                  # face detection samples per second

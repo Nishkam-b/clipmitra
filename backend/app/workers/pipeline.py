@@ -166,7 +166,9 @@ class Worker:
             # 3. highlights (higher temperature on regenerate for variety)
             current = "finding_highlights"
             self._stage(job_id, current, live_text="")
-            picks = highlights.select_highlights(transcript, temperature=0.3 if attempts == 1 else 0.6)
+            picks = highlights.select_highlights(
+                transcript, temperature=0.3 if attempts == 1 else 0.6,
+                on_progress=lambda f: self._stage(job_id, "finding_highlights", f))
             if not picks:
                 raise PipelineError("no_highlights",
                                     "There isn't enough continuous speech to make a 20-second clip.")
@@ -307,7 +309,8 @@ class _Tracker:
     def reframe(self, src: Path, start: float, end: float, fps: float) -> face.Reframe:
         if self.ft:
             frames = self.ft.detect(src, start, end, self.w, self.h)
-            return face.compute_reframe(frames, self.w, self.h, end - start, fps)
+            cuts = face.detect_cuts(src, start, end)  # multi-camera videos: reset framing at each cut
+            return face.compute_reframe(frames, self.w, self.h, end - start, fps, cuts)
         return face.Reframe(face.choose_layout(self.w, self.h, 0.0 if face.needs_tracking(self.w, self.h) else 1.0))
 
 

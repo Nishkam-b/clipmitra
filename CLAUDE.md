@@ -21,6 +21,7 @@ Read `PROJECT_PLAN.md` first; it has the phase status and hardware facts.
 - If a CSS change doesn't show in `next dev`, stop the server and delete `frontend/.next` (Turbopack persistent cache).
 
 - Before changing tracking, transcription or rendering: run `scripts/phase5_matrix.py --cold` (backend running) and compare with `docs/TEST_REPORT.md`. Check tracking with the saved `clip_N.reframe.json` paths, not just pass/fail.
+- Long videos: never send one prompt bigger than the LLM context; use `highlights.windows()`. Tracking must stay cut-aware (`face.detect_cuts`).
 - Low VRAM must never silently degrade Hindi: the default fallback runs the same Whisper model on CPU.
 
 ## Layout

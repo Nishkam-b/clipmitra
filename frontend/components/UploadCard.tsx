@@ -1,16 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ApiError, formatBytes, formatDuration, getFetch, startFetch, startProcessing, thumbnailUrl, uploadVideo,
+  ApiError, formatBytes, formatDuration, getFetch, getSystem, startFetch, startProcessing, thumbnailUrl, uploadVideo,
   type FetchResult, type UploadResult,
 } from "@/lib/api";
 import { CheckIcon, CloudUpIcon, DownloadIcon, LinkIcon, SparkIcon, UploadIcon, XIcon } from "./icons";
 
-const MAX_MINUTES = 5;
-const MAX_BYTES = 2 * 1024 ** 3;
 const ACCEPT = [".mp4", ".mov"];
+// Defaults until the engine reports its own limits (older engines allow 5 min / 2 GB).
+const DEFAULT_LIMITS = { minutes: 30, bytes: 8 * 1024 ** 3 };
+
+/** The limits come from the engine on this computer, so the page always matches the installed version. */
+function useEngineLimits() {
+  const [limits, setLimits] = useState(DEFAULT_LIMITS);
+  useEffect(() => {
+    getSystem()
+      .then((d) => setLimits({ minutes: Math.round(d.limits.max_duration_seconds / 60), bytes: d.limits.max_upload_mb * 1024 ** 2 }))
+      .catch(() => { /* keep defaults; the engine reports errors on upload anyway */ });
+  }, []);
+  return limits;
+}
 
 type State =
   | { kind: "idle"; error?: string }
@@ -36,15 +47,17 @@ export function UploadCard() {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const limits = useEngineLimits();
 
   const start = useCallback(async (file: File) => {
     const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
     if (!ACCEPT.includes(ext)) return setState({ kind: "idle", error: "Only MP4 and MOV videos are supported." });
-    if (file.size > MAX_BYTES) return setState({ kind: "idle", error: "File is larger than 2 GB." });
+    if (file.size > limits.bytes)
+      return setState({ kind: "idle", error: `File is larger than ${formatBytes(limits.bytes)}.` });
 
     const duration = await readDuration(file);
-    if (duration && duration > MAX_MINUTES * 60 + 1)
-      return setState({ kind: "idle", error: `This video is ${formatDuration(duration)} long. For now the limit is ${MAX_MINUTES} minutes.` });
+    if (duration && duration > limits.minutes * 60 + 1)
+      return setState({ kind: "idle", error: `This video is ${formatDuration(duration)} long. The limit is ${limits.minutes} minutes.` });
 
     const { promise, abort } = uploadVideo(file, (p) =>
       setState((s) =>
@@ -57,7 +70,7 @@ export function UploadCard() {
     } catch (e) {
       setState({ kind: "idle", error: e instanceof ApiError ? e.message : "Upload failed." });
     }
-  }, []);
+  }, [limits]);
 
   const onFiles = (files: FileList | null) => files?.[0] && start(files[0]);
   const reset = () => { setState({ kind: "idle" }); if (input.current) input.current.value = ""; };
@@ -89,7 +102,7 @@ export function UploadCard() {
                       className="mt-6 inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 px-7 py-3 font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:brightness-110">
                 <UploadIcon /> Choose Video
               </button>
-              <p className="mt-4 text-sm text-zinc-500">MP4, MOV • Up to {MAX_MINUTES} minutes</p>
+              <p className="mt-4 text-sm text-zinc-500">MP4, MOV • Up to {limits.minutes} minutes</p>
               {state.error && (
                 <p role="alert" className="mt-4 rounded-lg bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700">{state.error}</p>
               )}

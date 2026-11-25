@@ -33,7 +33,7 @@ backend + Ollama RAM and system RAM every 0.5 s (tagged by pipeline stage), veri
 | Noise as loud as speech (≈0 dB SNR) | 2:07 | 58 s | 12 s | 27 s | 5 s | 14 s | 4 | fit | 3.9% |
 | Noise louder than speech (≈−4.5 dB SNR) | 2:07 | 55 s | 12 s | 27 s | 4 s | 12 s | 4 | fit | 4.9% |
 | Truncated / corrupt MP4 | | rejected at upload: *"This file is not a readable video."* | | | | | | | |
-| 5:30 video | | rejected at upload: *"Video is longer than 5 minutes."* | | | | | | | |
+| 31-minute video (limit raised to 30 min, see §6) | | rejected at upload: *"Video is longer than 30 minutes."* | | | | | | | |
 | Music only, no speech | | job fails cleanly: *"We couldn't hear any speech in this video."* | | | | | | | |
 
 Notes: times are wall-clock from upload to completed, including the Qwen3 load. The very first job after
@@ -103,5 +103,40 @@ Test count: 89 → **96** automated tests, all passing.
 - **Two-person test uses the same person mirrored**, which also confuses the face detector more than two real
   people would.
 - **First job after starting Ollama is ~60 s slower** (model load).
-- **CPU fallback is slow:** ~1.6× real time for transcription (≈8 min for a 5-minute video).
+- **CPU fallback is slow:** ~1.6× real time for transcription (≈8 min for a 5-minute video, ≈48 min for 30 minutes).
 - Highlight choice quality was judged by eye on a handful of videos, not measured.
+
+## 6. Update: videos up to 30 minutes (2026-11-25)
+
+Limit raised from 5 to **30 minutes** (files up to 8 GB). Clip count scales with length: 3–4 for short
+videos, about one per 4 minutes for long ones, up to 8.
+
+**Problem:** a 30-minute transcript (~10k tokens) doesn't fit Qwen3's 8k context, and a larger context
+would not fit in 6 GB of VRAM. **Fix:** long transcripts are split into ~8-minute windows overlapping by
+1 minute (halved again if a window would still overflow, e.g. Hindi), Qwen3 proposes candidates per window,
+and the validator picks round-robin across windows, so clips are spread across the video.
+
+**Real test** — *IELTS Speaking Test with Feedback – Band 8.5* (27:39, Creative Commons, two-person,
+multi-camera), fetched by link:
+
+| Stage | Time | Peak VRAM |
+|---|---|---|
+| Fetch (1080p, 191 MB) | 59 s | — |
+| Transcribe (4,604 words) | 52 s | 2.9 GB |
+| Find highlights (windowed) | 52 s | 5.7 GB (same as short videos) |
+| Track speakers | 38 s | 1.8 GB |
+| Render 7 clips | 23 s | 2.0 GB |
+| **Total processing** | **2 min 46 s** | |
+
+7 clips spread from 0:12 to 25:06, all 1080×1920 and ffprobe-verified.
+
+**Bug found and fixed — multi-camera cuts.** The video cuts between a wide shot and close-ups. The tracker
+treated each cut like a person moving: after a cut the crop held the old spot for up to 3 s (showing a lamp,
+or the table in a wide shot). Fix: FFmpeg scene detection finds camera cuts (normal frames score ≤ 0.003,
+cuts ~0.43; threshold 0.15), the target is re-picked at every cut and the crop jumps on the exact cut frame;
+smoothing never crosses a cut. Checked by eye on two clips sampled every 2.5 s: every frame shows a person.
+A finer face scan for wide shots was tried and dropped: it found nothing the normal scan missed (the second
+person was in side profile, which the detector cannot see at any scale).
+
+Tests: 118 passing (adds windowing for English and Hindi 30-minute transcripts, prompt size, clip spread,
+cut handling, real FFmpeg cut detection).

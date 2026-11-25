@@ -8,13 +8,13 @@ const FEATURES = [
   { Icon: ScissorsIcon, label: "Finds Best Moments" },
   { Icon: CcIcon, label: "Adds Captions" },
   { Icon: FrameIcon, label: "Auto Reframe (9:16)" },
-  { Icon: BoltIcon, label: "Creates 3–4 Clips" },
+  { Icon: BoltIcon, label: "Up to 8 Clips" },
 ];
 
 const STEPS = [
   { Icon: UploadIcon, title: "Upload", body: "Add your long video" },
   { Icon: SparkIcon, title: "AI Processes", body: "Finds highlights, adds captions & reframes the speaker" },
-  { Icon: LayersIcon, title: "Get Clips", body: "Download 3–4 short, ready-to-post clips" },
+  { Icon: LayersIcon, title: "Get Clips", body: "Download up to 8 short, ready-to-post clips" },
 ];
 
 export default function CreateClipsPage() {
@@ -34,7 +34,7 @@ export default function CreateClipsPage() {
       </h1>
       <p className="mt-5 max-w-2xl text-lg leading-relaxed text-zinc-500">
         Upload a video or paste a link from YouTube, Instagram or any supported platform, and AI will find
-        the best moments, add captions, reframe the speaker and create 3–4 ready-to-post clips — all on your
+        the best moments, add captions, reframe the speaker and create ready-to-post clips from videos up to 30 minutes — all on your
         own computer.
       </p>
 

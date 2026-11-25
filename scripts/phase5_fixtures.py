@@ -150,9 +150,9 @@ def main() -> None:
         "-f", "lavfi", "-i", "sine=frequency=220:duration=40", "-f", "lavfi", "-i", "sine=frequency=330:duration=40",
         "-filter_complex", "[1:a][2:a]amix=inputs=2[a]", "-map", "0:v", "-map", "[a]",
         "-c:v", "h264_nvenc", "-c:a", "aac", str(p)))
-    make("too_long_5m30.mp4", lambda p: ff(
-        "-f", "lavfi", "-i", "testsrc2=s=640x360:r=15:d=330", "-f", "lavfi", "-i", "sine=f=300:d=330",
-        "-c:v", "h264_nvenc", "-c:a", "aac", str(p)))
+    make("too_long_31m.mp4", lambda p: ff(  # limit is 30 min (+1 s tolerance)
+        "-f", "lavfi", "-i", "testsrc2=s=320x180:r=5:d=1860", "-f", "lavfi", "-i", "sine=f=300:d=1860",
+        "-c:v", "h264_nvenc", "-c:a", "aac", "-b:a", "32k", str(p)))
 
     (OUT / "truths.json").write_text(json.dumps(truths, indent=1), "utf-8")
     for f in sorted(OUT.glob("*.m*")):

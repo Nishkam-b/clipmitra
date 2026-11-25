@@ -156,11 +156,19 @@ tracking_speakers → creating_captions → rendering_clips → completed | fail
 - Not tested: a truly fresh Windows PC (tools were already present here except Deno/uv), non-NVIDIA PCs,
   Safari/Firefox.
 
+### 30-minute videos (2026-11-25)
+- Limit 5 → 30 min, 2 → 8 GB; clips scale up to 8 (≈ one per 4 min). Upload page reads limits from the engine.
+- Long transcripts: ~8-min overlapping windows for Qwen3 (stays within 8k context / 6 GB VRAM), round-robin
+  pick across windows so clips are spread out.
+- Camera-cut aware tracking (FFmpeg scene detection): re-pick target and jump on the exact cut frame.
+- Verified on a real 27:39 multi-camera CC podcast via link: 7 clips in 2 min 46 s, peak VRAM 5.7 GB.
+  Details: docs/TEST_REPORT.md §6. 118 tests.
+
 ## 6. Deferred / out of scope for MVP
 - ~~"Paste video link"~~ — built (see "Paste-a-link + public release" above), with a rights confirmation.
 - Pyannote diarization (later phase, needs HF token + license acceptance).
 - Multi-speaker switching beyond simple "largest/most active face".
-- Videos > 5 min (raise `MAX_DURATION_SECONDS` once pipeline is proven; mockups show 30 min).
+- ~~Videos > 5 min~~ — done: up to 30 minutes.
 
 ## 7. Log
 

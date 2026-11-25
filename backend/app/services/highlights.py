@@ -109,8 +109,11 @@ def build_sentences(words: list[dict], segments: list[dict] | None = None,
 
 
 def target_clip_count(duration: float) -> int:
+    """3-4 clips for short videos; about one per 4 minutes for long ones, up to clips_max (8 for 30 min)."""
     s = get_settings()
-    return max(1, min(s.clips_target, int(duration // 30)))
+    if duration <= 300:
+        return max(1, min(s.clips_target, int(duration // 30)))
+    return min(s.clips_max, max(s.clips_target, round(duration / 240)))
 
 
 # ---------------------------------------------------------------- validation helpers
@@ -208,12 +211,14 @@ def _first_words(text: str, n: int = 7) -> str:
 
 # ---------------------------------------------------------------- selection
 
-def validate(candidates: list[dict], s: list[Sentence], duration: float, limit: int) -> list[Highlight]:
+def validate(candidates: list[dict], s: list[Sentence], duration: float, limit: int,
+             presorted: bool = False) -> list[Highlight]:
+    """presorted=True keeps the given order (used to pick round-robin across windows of long videos)."""
     cfg = get_settings()
     lo, hi = cfg.clip_min_seconds, cfg.clip_max_seconds - 0.6  # leave room for padding
     taken: list[tuple[int, int]] = []
     out: list[Highlight] = []
-    ranked = sorted(candidates, key=lambda c: -_score(c.get("editorial_score")))
+    ranked = candidates if presorted else sorted(candidates, key=lambda c: -_score(c.get("editorial_score")))
     for c in ranked:
         if len(out) >= limit:
             break
@@ -322,33 +327,103 @@ def _ts(t: float) -> str:
     return f"{int(t // 60):02d}:{t % 60:04.1f}"
 
 
-def build_prompt(s: list[Sentence], duration: float, n: int) -> str:
+def build_prompt(s: list[Sentence], duration: float, n: int, part: tuple[float, float] | None = None) -> str:
+    """Lines keep their GLOBAL sentence numbers, so answers from any window map straight back."""
     lines = "\n".join(f"[{x.idx}] {_ts(x.start)} {x.text}" for x in s)
-    return (f"Video length: {_ts(duration)} (ends at {_ts(s[-1].end)}).\n"
-            f"Suggest the {n} best clips, best first.\n\nTranscript:\n{lines}")
+    where = (f"This is the part from {_ts(part[0])} to {_ts(part[1])} of a {_ts(duration)} video. "
+             f"Only choose clips inside this part.\n" if part else
+             f"Video length: {_ts(duration)} (ends at {_ts(s[-1].end)}).\n")
+    return f"{where}Suggest the {n} best clips, best first.\n\nTranscript:\n{lines}"
 
 
-def select_highlights(transcript: dict, temperature: float = 0.3) -> list[Highlight]:
+def estimate_tokens(text: str) -> int:
+    """Rough upper bound: Devanagari costs far more tokens per character than English."""
+    dev = sum(1 for ch in text if "ऀ" <= ch <= "ॿ")
+    return int((len(text) - dev) / 3.2 + dev / 1.2) + 1
+
+
+def windows(s: list[Sentence], size: float, overlap: float) -> list[list[Sentence]]:
+    """Split sentences into time windows of `size` seconds overlapping by `overlap` (stories at a
+    boundary appear whole in one of the two windows)."""
+    if not s:
+        return []
+    out, t0, end = [], s[0].start, s[-1].end
+    while True:
+        w = [x for x in s if t0 <= x.start < t0 + size]
+        if w:
+            out.append(w)
+        if t0 + size >= end:
+            return out
+        t0 += size - overlap
+
+
+def _ask(system: str, sents: list[Sentence], duration: float, n: int, temperature: float,
+         part: tuple[float, float] | None, tries: int = 2) -> list[dict]:
+    """LLM call, retried on unreadable output. Returns raw candidate dicts ([] if unusable)."""
+    for attempt in range(tries):
+        try:
+            data = llm.chat_json(system, build_prompt(sents, duration, n, part), schema(n),
+                                 temperature=min(temperature + 0.2 * attempt, 0.8), max_tokens=250 * n + 200)
+            return data.get("clips") or []
+        except PipelineError as e:
+            if e.code != "llm_bad_output":
+                raise  # Ollama down / model missing: the user needs to act
+            log.warning("unreadable LLM answer (attempt %d)", attempt + 1)
+    return []
+
+
+def select_highlights(transcript: dict, temperature: float = 0.3, on_progress=None) -> list[Highlight]:
     cfg = get_settings()
     s = build_sentences(transcript["words"], transcript.get("segments"))
     duration = transcript["duration"]
     target = target_clip_count(duration)
     system = SYSTEM.format(lo=cfg.clip_min_seconds, hi=cfg.clip_max_seconds)
+    # Prompt budget: context minus the system prompt and the answer.
+    budget = cfg.llm_context - estimate_tokens(system) - 250 * (target + 2) - 400
 
-    chosen: list[Highlight] = []
-    n = target + 2
-    for attempt in range(2):  # one retry if the model's answer is unusable
-        try:
-            data = llm.chat_json(system, build_prompt(s, duration, n), schema(n),
-                                 temperature=min(temperature + 0.2 * attempt, 0.8), max_tokens=250 * n + 200)
-        except PipelineError as e:
-            if e.code != "llm_bad_output":
-                raise  # Ollama down / model missing: the user needs to act
-            log.warning("unreadable LLM answer (attempt %d)", attempt + 1)
-            continue
-        chosen = validate(data.get("clips") or [], s, duration, target)
-        if len(chosen) >= target:
-            break
+    whole = build_prompt(s, duration, target + 2)
+    if duration <= cfg.highlight_window_seconds + cfg.highlight_window_overlap and estimate_tokens(whole) <= budget:
+        # Short video: one call over the whole transcript (unchanged behaviour).
+        chosen: list[Highlight] = []
+        for attempt in range(2):
+            chosen = validate(_ask(system, s, duration, target + 2, temperature + 0.2 * attempt, None, tries=1),
+                              s, duration, target)
+            if len(chosen) >= target:
+                break
+    else:
+        # Long video: ~8-minute windows, halved further if a window would still overflow the context.
+        parts, size = [], cfg.highlight_window_seconds
+        while True:
+            parts = windows(s, size, min(cfg.highlight_window_overlap, size / 4))
+            if size <= 90 or all(estimate_tokens(build_prompt(w, duration, 6, (w[0].start, w[-1].end))) <= budget
+                                 for w in parts):
+                break
+            size /= 2
+        per_window = []
+        for k, w in enumerate(parts):
+            span = w[-1].end - w[0].start
+            n = int(min(6, max(3, -(-target * span // duration) + 2)))
+            cands = _ask(system, w, duration, n, temperature, (w[0].start, w[-1].end))
+            # keep only answers inside this window (the model sometimes drifts)
+            lo_i, hi_i = w[0].idx, w[-1].idx
+            cands = [c for c in cands if isinstance(c, dict)
+                     and lo_i <= _int(c.get("start_sentence")) <= hi_i and lo_i <= _int(c.get("end_sentence")) <= hi_i]
+            per_window.append(sorted(cands, key=lambda c: -_score(c.get("editorial_score"))))
+            if on_progress:
+                on_progress((k + 1) / len(parts))
+        # Round-robin: every window's best, then every window's second best… spreads clips over the video.
+        order = [c for rank in range(max((len(p) for p in per_window), default=0))
+                 for p in per_window if rank < len(p) for c in [p[rank]]]
+        chosen = validate(order, s, duration, target, presorted=True)
+        log.info("long video: %d windows, %d candidates, %d chosen", len(parts), len(order), len(chosen))
+
     if len(chosen) < target:
         chosen += fallback_fill(s, chosen, target - len(chosen), duration)
-    return chosen
+    return sorted(chosen, key=lambda h: -h.editorial_score)
+
+
+def _int(v) -> int:
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return -1

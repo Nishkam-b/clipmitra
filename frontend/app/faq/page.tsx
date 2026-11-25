@@ -113,8 +113,19 @@ const GENERAL: QA[] = [
     ),
   },
   {
-    q: "Why is there a 5-minute limit?",
-    a: <p>ClipMitra is in its first version and is tuned for videos up to 5 minutes, so processing stays fast on everyday laptops. Longer videos are on the roadmap.</p>,
+    q: "How long can my video be, and how many clips do I get?",
+    a: (
+      <>
+        <p>
+          Videos can be up to <b>30 minutes</b> long (files up to 8 GB). Short videos give 3–4 clips; longer ones give
+          about one clip per 4 minutes, up to <b>8 clips</b> for a 30-minute video, spread across the whole video.
+        </p>
+        <p>
+          On a laptop with an NVIDIA graphics card a 30-minute video takes a few minutes to process. Without one it runs
+          on the processor and can take much longer (roughly as long as the video itself, or more).
+        </p>
+      </>
+    ),
   },
   {
     q: "Does it work for Hindi and Hinglish?",

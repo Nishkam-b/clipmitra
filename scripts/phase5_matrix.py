@@ -42,7 +42,7 @@ CASES: list[tuple[str, dict]] = [
     ("voice_male_snr0.mp4", {"min_clips": 1, "layout": "fit"}),
     ("voice_male_snr-5.mp4", {"min_clips": 1, "layout": "fit"}),
     ("corrupt_truncated.mp4", {"upload_error": "invalid_video"}),
-    ("too_long_5m30.mp4", {"upload_error": "too_long"}),
+    ("too_long_31m.mp4", {"upload_error": "too_long"}),
     ("no_speech_music.mp4", {"job_error": "no_speech"}),
 ]
 

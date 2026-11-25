@@ -9,6 +9,7 @@ Pipeline per clip:
 from __future__ import annotations
 
 import logging
+import re
 import statistics
 import subprocess
 from dataclasses import dataclass, field
@@ -184,7 +185,8 @@ def needs_tracking(src_w: int, src_h: int) -> bool:
 # ------------------------------------------------------------------ target selection
 
 def pick_target(frames: list[tuple[float, list[Face]]], min_area: float = 0.004,
-                switch_after: int = 15, same_person: float = 0.25) -> Track:
+                switch_after: int = 15, same_person: float = 0.25,
+                shots: list[int] | None = None) -> Track:
     """Follow one face: start with the most prominent, then stay with that person.
 
     Prominence = size, plus mouth movement (the speaker usually moves their lips).
@@ -198,6 +200,8 @@ def pick_target(frames: list[tuple[float, list[Face]]], min_area: float = 0.004,
     lost = 0
     for t, faces in frames:
         faces = [f for f in faces if f.area >= min_area]  # ignore tiny background faces
+        if shots is not None and len(tr.times) and shots[len(tr.times)] != shots[len(tr.times) - 1]:
+            prev, lost = None, 0  # camera cut: the new shot shows a different view; pick its main face afresh
         tr.times.append(t)
         tr.faces_per_frame.append(len(faces))
         cur: Face | None = None
@@ -274,27 +278,62 @@ def smooth_path(
     return out
 
 
-def compute_reframe(frames: list[tuple[float, list[Face]]], src_w: int, src_h: int,
-                    duration: float, out_fps: float) -> Reframe:
+def detect_cuts(src: Path, start: float, end: float, threshold: float = 0.15) -> list[float]:
+    """Camera cuts (seconds from `start`) via FFmpeg scene detection on a small preview.
+
+    Measured on a multi-camera podcast: normal frames score <= 0.003, cuts ~0.43.
+    """
     s = get_settings()
-    tr = pick_target(frames)
+    try:
+        p = subprocess.run(
+            [s.ffmpeg_bin, "-v", "error", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{end - start:.3f}", "-an",
+             "-vf", f"scale=192:-2,select='gt(scene,{threshold})',metadata=print:file=-", "-f", "null", "-"],
+            capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    return sorted(float(m) for m in re.findall(r"pts_time:([0-9.]+)", p.stdout) if float(m) > 0.05)
+
+
+def compute_reframe(frames: list[tuple[float, list[Face]]], src_w: int, src_h: int,
+                    duration: float, out_fps: float, cuts: list[float] | tuple = ()) -> Reframe:
+    """Crop path per output frame. `cuts` (camera cuts, seconds) split the clip into shots: the target is
+    re-picked at each cut and the frame jumps on the exact cut frame (no pan, no lag)."""
+    s = get_settings()
+    cuts = sorted(cuts)
+    times = np.array([t for t, _ in frames])
+    shots = list(np.searchsorted(cuts, times, side="right")) if cuts else None
+    tr = pick_target(frames, shots=shots)
     layout = choose_layout(src_w, src_h, tr.face_coverage)
     rf = Reframe(layout=layout, coverage=round(tr.face_coverage, 3), max_faces=max(tr.faces_per_frame, default=0))
     if layout != "track":
         return rf
     crop_w = int(round(src_h * TARGET_AR / 2)) * 2
     rf.crop_w, rf.crop_h = crop_w, src_h
-    path = smooth_path(_fill_gaps(tr.target), 1 / s.track_fps, crop_w / src_w)
-    # one x per output frame: linear between tracking samples, except across a cut (switch of person),
-    # which must land on a single frame instead of being smeared into a fast pan
+    frac = crop_w / src_w
+    shot_of = np.array(shots if shots is not None else [0] * len(times))
+    # smooth each shot on its own (no median/easing across a cut)
+    p = np.zeros(len(times))
+    for sid in np.unique(shot_of):
+        idx = np.nonzero(shot_of == sid)[0]
+        p[idx] = smooth_path(_fill_gaps([tr.target[i] for i in idx]), 1 / s.track_fps, frac)
+    # one x per output frame: linear between samples of the same shot; a jump bigger than the frame
+    # (switch of person) lands on a single frame instead of being smeared into a fast pan
     n = max(1, int(round(duration * out_fps)))
     t_out = np.arange(n) / out_fps
-    times, p = np.array(tr.times), np.array(path)
-    centre = np.interp(t_out, times, p)
-    frac = crop_w / src_w
-    for k in np.nonzero(np.abs(np.diff(p)) > frac)[0]:
-        seg = (t_out >= times[k]) & (t_out < times[k + 1])
-        centre[seg] = p[k]
+    out_shot = np.searchsorted(cuts, t_out, side="right") if cuts else np.zeros(n, int)
+    centre = np.empty(n)
+    for sid in np.unique(out_shot):
+        m = out_shot == sid
+        idx = np.nonzero(shot_of == sid)[0]
+        if len(idx) == 0:  # shot shorter than one sample: use the nearest sample in time
+            centre[m] = p[np.argmin(np.abs(times - t_out[m][0]))]
+            continue
+        ts, ps = times[idx], p[idx]
+        c = np.interp(t_out[m], ts, ps)
+        tm = t_out[m]
+        for k in np.nonzero(np.abs(np.diff(ps)) > frac)[0]:
+            c[(tm >= ts[k]) & (tm < ts[k + 1])] = ps[k]
+        centre[m] = c
     centre = centre * src_w
     left = np.clip(np.round(centre - crop_w / 2), 0, src_w - crop_w)
     rf.xs = [int(x) for x in left]

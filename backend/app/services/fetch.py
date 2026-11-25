@@ -62,7 +62,7 @@ _FRIENDLY = [
      "unavailable", "This video is unavailable (removed, region-locked or the link is wrong)."),
     (r"timed out|connection|getaddrinfo|network|resolve",
      "network", "Couldn't reach that website. Check your internet connection and try again."),
-    (r"max_filesize|larger than", "file_too_large", "This video file is too large (over 2 GB)."),
+    (r"max_filesize|larger than", "file_too_large", "This video file is too large."),
 ]
 
 
@@ -145,7 +145,7 @@ def fetch_to_upload(url: str, fetch_id: str, db: Database, on_progress) -> dict:
     # 3. exactly the same checks as a normal upload
     digest, size = sha256_file(media)
     if size > s.max_upload_bytes:
-        raise MediaError("file_too_large", "This video file is too large (over 2 GB).")
+        raise MediaError("file_too_large", f"This video file is larger than {s.max_upload_bytes // 1024**3} GB.")
     tmp = s.temp_dir / f"{uuid.uuid4().hex}.part"
     media.replace(tmp)
     try:

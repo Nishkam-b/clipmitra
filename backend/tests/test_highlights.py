@@ -1,6 +1,8 @@
 """Pure-logic tests for highlight validation (no LLM, no GPU)."""
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from app.services import highlights as hl
@@ -211,3 +213,57 @@ def test_target_clip_count():
     assert hl.target_clip_count(300) == 4
     assert hl.target_clip_count(65) == 2
     assert hl.target_clip_count(15) == 1
+    assert hl.target_clip_count(600) == 4     # 10 min
+    assert hl.target_clip_count(1200) == 5    # 20 min
+    assert hl.target_clip_count(1800) == 8    # 30 min
+
+
+def long_transcript(minutes: int = 30, hindi: bool = False) -> dict:
+    """Synthetic 30-min talk: a 12-word sentence every 5 s."""
+    words, n = [], minutes * 12
+    for i in range(n):
+        toks = (["यह", "बहुत", "ज़रूरी", "बात", "है", "जो", "मैं", "आज", "बताने", "वाला", "हूँ", f"{i}।"] if hindi
+                else ["This", "is", "point", "number", str(i), "about", "growing", "your", "channel", "every", "single", "day."])
+        t0 = i * 5.0
+        words += [{"start": t0 + j * 0.35, "end": t0 + j * 0.35 + 0.3, "text": t, "prob": 0.9} for j, t in enumerate(toks)]
+    return {"words": words, "duration": n * 5.0, "segments": []}
+
+
+def test_long_video_uses_windows_that_fit_the_context(monkeypatch):
+    prompts = []
+
+    def fake(system, user, schema, temperature=0.3, max_tokens=1500):
+        prompts.append(user)
+        idx = [int(x) for x in re.findall(r"^\[(\d+)\]", user, re.M)]
+        a = idx[len(idx) // 3]  # suggest one clip from the middle of each window
+        return {"clips": [{"start_sentence": a, "end_sentence": a + 6, "title": "T", "hook": "",
+                           "reason": "r", "editorial_score": 8}]}
+
+    monkeypatch.setattr(hl.llm, "chat_json", fake)
+    for hindi in (False, True):
+        prompts.clear()
+        out = hl.select_highlights(long_transcript(30, hindi))
+        assert len(prompts) >= 4                                  # windowed, not one huge prompt
+        assert all(hl.estimate_tokens(p) < 5500 for p in prompts) # each fits next to system + answer in 8k
+        assert all("part from" in p for p in prompts)
+        ai = [h for h in out if h.source == "ai"]
+        assert len(out) == 8 and len(ai) >= 4
+        starts = sorted(h.start_time for h in ai)
+        assert starts[-1] - starts[0] > 15 * 60                   # spread across the video, not bunched
+        spans = sorted((h.start_time, h.end_time) for h in out)
+        assert all(a[1] <= b[0] for a, b in zip(spans, spans[1:]))  # never overlapping
+
+
+def test_window_answers_outside_the_window_are_ignored(monkeypatch):
+    monkeypatch.setattr(hl.llm, "chat_json", lambda *a, **k: {"clips": [
+        {"start_sentence": 99999, "end_sentence": 100005, "title": "x", "hook": "", "reason": "", "editorial_score": 9}]})
+    out = hl.select_highlights(long_transcript(20))
+    assert out and all(h.source == "fallback" for h in out)   # bogus indices never become clips
+
+
+def test_windows_cover_everything_with_overlap():
+    s = hl.build_sentences(long_transcript(30)["words"])
+    ws = hl.windows(s, 480, 60)
+    covered = {x.idx for w in ws for x in w}
+    assert covered == {x.idx for x in s}
+    assert all(ws[i][-1].start > ws[i + 1][0].start for i in range(len(ws) - 1))  # consecutive windows overlap

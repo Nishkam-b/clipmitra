@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+import subprocess
 
 import pytest
 
@@ -96,6 +97,44 @@ def test_layout_uses_any_face_not_just_the_followed_one():
              [(i / 5, []) for i in range(9, 14)] + [(i / 5, [b]) for i in range(14, 17)] + [(i / 5, []) for i in range(17, 20)]
     rf = face.compute_reframe(frames, 1920, 1080, 4.0, 30)
     assert rf.layout == "track" and rf.coverage == 0.6
+
+
+def test_camera_cut_reframes_on_the_exact_cut_frame():
+    """Multi-camera podcast: wide shot (speaker at x=0.21) cuts to a close-up (face at x=0.5) at t=3.1 s.
+    Without cut awareness the crop held the old spot for ~3 s (showing a lamp)."""
+    wide = lambda: Face(0.21, 0.4, 0.05, 0.09, 0.02)
+    close = lambda: Face(0.50, 0.4, 0.15, 0.30, 0.02)
+    frames = [(i / 5, [wide()]) for i in range(16)] + [(i / 5, [close()]) for i in range(16, 40)]
+    rf = face.compute_reframe(frames, 1920, 1080, 8.0, 30, cuts=[3.1])
+    centre = lambda k: rf.xs[k] + rf.crop_w / 2
+    cut_frame = int(3.1 * 30) + 1
+    assert abs(centre(cut_frame - 2) - 0.21 * 1920) < 0.12 * 608   # on the wide-shot speaker until the cut
+    assert abs(centre(cut_frame + 1) - 0.50 * 1920) < 0.12 * 608   # on the close-up face right after it
+    jumps = [k for k in range(1, len(rf.xs)) if abs(rf.xs[k] - rf.xs[k - 1]) > 100]
+    assert len(jumps) == 1 and abs(jumps[0] - cut_frame) <= 1
+
+
+def test_shot_without_faces_is_centred_and_next_shot_recovers():
+    a = lambda: Face(0.25, 0.4, 0.1, 0.18, 0.02)
+    frames = [(i / 5, [a()]) for i in range(10)] + [(i / 5, []) for i in range(10, 20)] + \
+             [(i / 5, [a()]) for i in range(20, 30)]
+    rf = face.compute_reframe(frames, 1920, 1080, 6.0, 30, cuts=[2.0, 4.0])
+    assert abs(rf.xs[90] + 304 - 960) < 5          # faceless shot: centred
+    assert abs(rf.xs[150] + 304 - 0.25 * 1920) < 80  # back on the speaker in the next shot
+
+
+def test_detect_cuts_on_real_video(tmp_path):
+    from app.services.face import detect_cuts
+    from tests.test_upload import make_video
+    a = make_video(tmp_path / "a.mp4", 2, color="red")
+    b = make_video(tmp_path / "b.mp4", 2, color="blue")
+    lst = tmp_path / "l.txt"
+    lst.write_text(f"file '{a.as_posix()}'\nfile '{b.as_posix()}'\n")
+    out = tmp_path / "cut.mp4"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out)],
+                   check=True)
+    cuts = detect_cuts(out, 0, 4)
+    assert len(cuts) == 1 and abs(cuts[0] - 2.0) < 0.1
 
 
 def test_switches_after_target_gone_for_long():
