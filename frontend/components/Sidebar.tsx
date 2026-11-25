@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
-import { FolderIcon, GearIcon, MonitorIcon, PlayLogo, PlusIcon } from "./icons";
+import { FolderIcon, GearIcon, HelpIcon, MonitorIcon, PlayLogo, PlusIcon } from "./icons";
 
 const NAV = [
   { href: "/", label: "Create Clips", Icon: PlusIcon },
   { href: "/projects", label: "My Projects", Icon: FolderIcon },
   { href: "/settings", label: "Settings", Icon: GearIcon },
+  { href: "/faq", label: "Help & FAQ", Icon: HelpIcon },
 ];
 
 export function Sidebar() {

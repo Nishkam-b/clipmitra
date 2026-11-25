@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { DownloadIcon, MonitorIcon, Spinner } from "./icons";
@@ -40,6 +41,10 @@ function InstallBox() {
         <li><b>2.</b> If Windows says <i>“Windows protected your PC”</i>, click <b>More info → Run anyway</b>.</li>
         <li><b>3.</b> Come back here — this page connects automatically.</li>
       </ol>
+      <p className="mt-2 text-xs text-zinc-600">
+        🔒 Open source, runs only on your PC, no admin rights needed.{" "}
+        <Link href="/faq" className="font-semibold text-violet-700 hover:underline">Is it safe?</Link>
+      </p>
       <details className="mt-3 text-xs text-zinc-500">
         <summary className="cursor-pointer hover:text-violet-700">Prefer PowerShell?</summary>
         <CopyCommand text={INSTALL_CMD} />
