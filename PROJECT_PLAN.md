@@ -139,8 +139,25 @@ tracking_speakers → creating_captions → rendering_clips → completed | fail
 - ✅ Live connection confirmed by the user in their own browser (2026-11-25): nishtek.in/clipmitra →
   Allow → connected to the local engine.
 
+### Paste-a-link + public release (2026-11-25)
+- **Paste video link** (user decision: any platform + rights tick): `POST /api/fetch` requires
+  `confirm_rights`; yt-dlp reads metadata first (rejects live, playlists, > 5 min without downloading),
+  downloads ≤1080p MP4, then the normal upload checks. YouTube needs a JS runtime (Deno via installer, or Node).
+  Verified: Creative-Commons YouTube talk (3:35) fetched in ~10 s → 4 clips in 54 s; 10:35 video refused
+  from metadata; private/unavailable/unsupported links get plain-language errors. 112 tests.
+- **Public repo:** https://github.com/Nishkam-b/clipmitra (MIT). Commit author rewritten to the GitHub
+  no-reply address before publishing (user decision).
+- **One-click installer** (`install.ps1`, `irm … | iex`): winget FFmpeg/Ollama/Deno/uv, app in
+  `%LOCALAPPDATA%\ClipMitra\app`, data in `…\data` (kept on update), Python 3.12 env, models, shortcuts.
+  Verified: fresh install into a folder with a space in 302 s (incl. 1.6 GB Whisper); update in 9–13 s keeping
+  data; installed engine processed a video (2 tracked clips, 38 s) and fetched YouTube via Deno; shortcut
+  command starts the engine; public path (script + GitHub ZIP) tested. Bugs fixed: unquoted args with spaces,
+  stale PATH making winget abort on re-run, running engine blocking the update.
+- Not tested: a truly fresh Windows PC (tools were already present here except Deno/uv), non-NVIDIA PCs,
+  Safari/Firefox.
+
 ## 6. Deferred / out of scope for MVP
-- "Paste video link" (shown in the mockup): **deferred.** Downloading from YouTube etc. needs rights/authorisation; MVP = direct upload only.
+- ~~"Paste video link"~~ — built (see "Paste-a-link + public release" above), with a rights confirmation.
 - Pyannote diarization (later phase, needs HF token + license acceptance).
 - Multi-speaker switching beyond simple "largest/most active face".
 - Videos > 5 min (raise `MAX_DURATION_SECONDS` once pipeline is proven; mockups show 30 min).
