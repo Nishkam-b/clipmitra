@@ -15,15 +15,21 @@ Your videos never leave your machine. The page at nishtek.in only shows the inte
 
 ## Install (Windows 10/11)
 
-Open **PowerShell** and run:
+**[Download ClipMitra-Setup.exe](https://github.com/Nishkam-b/clipmitra/releases/latest/download/ClipMitra-Setup.exe)**,
+open it and click **Install**. No administrator rights needed; it takes about 5–15 minutes.
+
+> Windows may show *"Windows protected your PC"* because the installer isn't code-signed yet —
+> click **More info → Run anyway**.
+
+Setup installs FFmpeg, Ollama, Deno and uv (via winget), sets up the engine in `%LOCALAPPDATA%\ClipMitra`,
+downloads the AI models (~4 GB) and adds a **ClipMitra** shortcut to your Desktop and Start menu.
+Run it again any time to update — your videos and clips are kept. Uninstall from *Settings → Apps*.
+
+Prefer PowerShell? This does the same:
 
 ```powershell
 irm https://raw.githubusercontent.com/Nishkam-b/clipmitra/main/install.ps1 | iex
 ```
-
-It installs FFmpeg, Ollama, Deno and uv (via winget), sets up the engine in `%LOCALAPPDATA%\ClipMitra`,
-downloads the AI models (~4 GB) and adds a **ClipMitra** shortcut to your Desktop and Start menu.
-Run it again any time to update — your videos and clips are kept.
 
 **Requirements:** 64-bit Windows 10/11, ~8 GB free disk. An NVIDIA GPU with 6 GB+ VRAM is recommended;
 without one ClipMitra still works on the CPU, several times slower.
