@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClipCard } from "@/components/ClipCard";
 import { StageList } from "@/components/StageList";
@@ -12,7 +12,7 @@ import {
 import { AlertIcon, ArrowLeftIcon, ClockIcon, DownloadIcon, MicIcon, RefreshIcon, Spinner, XIcon } from "@/components/icons";
 
 export default function JobView() {
-  const { id } = useParams<{ id: string }>();
+  const id = useSearchParams().get("id") ?? "";
   const [job, setJob] = useState<Job | null>(null);
   const [clips, setClips] = useState<Clip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -233,7 +233,7 @@ function Results({ clips, jobId }: { clips: Clip[] | null; jobId: string }) {
           <h2 className="text-2xl font-bold tracking-tight">{clips.length} clips ready</h2>
           <p className="mt-1 text-zinc-500">Vertical 9:16 with word-by-word captions. Edit any clip to trim it or restyle captions.</p>
         </div>
-        <Link href={`/jobs/${jobId}/export`}
+        <Link href={`/job/export?id=${jobId}`}
               className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 font-semibold text-white hover:bg-violet-700">
           <DownloadIcon width={18} height={18} /> Export
         </Link>

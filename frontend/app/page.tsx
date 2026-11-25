@@ -1,3 +1,4 @@
+import { EngineGate } from "@/components/EngineGate";
 import { UploadCard } from "@/components/UploadCard";
 import {
   ArrowRightIcon, BoltIcon, CcIcon, FrameIcon, LayersIcon, ScissorsIcon, SparkIcon, UploadIcon,
@@ -36,7 +37,7 @@ export default function CreateClipsPage() {
         and create 3–4 ready-to-post clips — all on your own computer.
       </p>
 
-      <div className="mt-9"><UploadCard /></div>
+      <div className="mt-9"><EngineGate><UploadCard /></EngineGate></div>
 
       <ul className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {FEATURES.map(({ Icon, label }) => (

@@ -47,7 +47,7 @@ export function ClipCard({ clip }: { clip: Clip }) {
           </p>
         )}
         <div className="mt-auto flex gap-2 pt-4">
-          <Link href={`/clips/${clip.clip_id}/edit`}
+          <Link href={`/edit?id=${clip.clip_id}`}
                 className="flex flex-1 items-center justify-center rounded-xl border border-violet-200 px-3 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50">
             Edit
           </Link>

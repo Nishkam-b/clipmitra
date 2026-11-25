@@ -148,7 +148,7 @@ function UploadedFile({ result, onReset }: { result: UploadResult; onReset: () =
     setError(null);
     try {
       const job = await startProcessing(result.upload_id);
-      router.push(`/jobs/${job.job_id}`);
+      router.push(`/job?id=${job.job_id}`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't start processing.");
       setStarting(false);

@@ -18,4 +18,22 @@ ollama pull qwen3:4b         # one-time: local LLM (~2.5 GB)
 
 Verify the AI stack: `backend/.venv/Scripts/python scripts/verify_stack.py`
 
+The UI is served under `/clipmitra` (dev: http://localhost:3000/clipmitra/).
+
+## Live: https://nishtek.in/clipmitra
+
+The interface is a static site on GitHub Pages (repo `Nishkam-b/nishkam-b.github.io`, folder `clipmitra/`).
+All processing still runs on the visitor's own computer: the page talks to the engine at `http://127.0.0.1:8000`.
+
+- Start Ollama and `scripts\dev-backend.ps1`, then open the live URL. Chrome/Edge ask once to allow
+  **local network access** for nishtek.in — choose Allow (the page explains how if it was blocked).
+- The engine only accepts requests from nishtek.in and localhost; other websites get 403.
+
+Publish a new version:
+
+```powershell
+cd frontend; npm run build          # static export -> frontend/out
+# replace clipmitra/ in a clone of Nishkam-b/nishkam-b.github.io with frontend/out, commit, push
+```
+
 Docs: [dependencies](docs/DEPENDENCIES.md) · [working rules](CLAUDE.md)

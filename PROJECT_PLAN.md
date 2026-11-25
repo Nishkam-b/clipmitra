@@ -128,6 +128,16 @@ tracking_speakers → creating_captions → rendering_clips → completed | fail
 - [x] 6 bugs found and fixed with regression tests (rotation, two-person drift, cutaway switching,
       pan-instead-of-cut, unusable low-VRAM Hindi, layout coverage); tests 89 → 96
 
+### Go-live (2026-11-25) — https://nishtek.in/clipmitra
+- Frontend is a static export (`output: "export"`, `basePath: "/clipmitra"`, query-string routes `?id=`)
+  published as a folder of the existing GitHub Pages site; engine stays on the user's PC (₹0, private).
+- Engine: CORS allows nishtek.in, answers Private Network Access preflights, and rejects any other website
+  (403) — browsers allow blind cross-site uploads to 127.0.0.1 otherwise.
+- Verified: static build served under /clipmitra against the engine (upload page, projects, job, editor,
+  deep-link reload, auto-reconnect, offline screen). On the live domain, Chrome 156 enforces Local Network
+  Access: needs the visitor's one-time Allow. The in-app test browser can't grant it, so the live
+  connection must be confirmed once in a normal Chrome/Edge. The page shows fix-it steps when blocked.
+
 ## 6. Deferred / out of scope for MVP
 - "Paste video link" (shown in the mockup): **deferred.** Downloading from YouTube etc. needs rights/authorisation; MVP = direct upload only.
 - Pyannote diarization (later phase, needs HF token + license acceptance).

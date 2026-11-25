@@ -34,7 +34,7 @@ export default function ProjectsPage() {
         <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((j) => (
             <li key={j.job_id}>
-              <Link href={`/jobs/${j.job_id}`} className="block overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition hover:shadow-md">
+              <Link href={`/job?id=${j.job_id}`} className="block overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition hover:shadow-md">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={thumbnailUrl(j.upload.upload_id)} alt="" className="aspect-video w-full bg-zinc-100 object-cover" />
                 <div className="p-4">

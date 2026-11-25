@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Preview, type PreviewHandle } from "@/components/editor/Preview";
 import { StylePanel } from "@/components/editor/StylePanel";
@@ -36,7 +36,7 @@ function useFontFaces(data: EditorData | null) {
 }
 
 export default function EditorView() {
-  const { id } = useParams<{ id: string }>();
+  const id = useSearchParams().get("id") ?? "";
   const [data, setData] = useState<EditorData | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saved, setSaved] = useState<Draft | null>(null);
@@ -208,7 +208,7 @@ function Shell({ jobId, title, children }: { jobId?: string; title?: string; chi
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pt-8 lg:px-10">
       <nav className="mb-6 flex items-center gap-2 text-sm font-medium text-zinc-500">
-        <Link href={jobId ? `/jobs/${jobId}` : "/projects"} className="inline-flex items-center gap-1.5 hover:text-violet-700">
+        <Link href={jobId ? `/job?id=${jobId}` : "/projects"} className="inline-flex items-center gap-1.5 hover:text-violet-700">
           <ArrowLeftIcon width={16} height={16} /> Your clips
         </Link>
         <span>›</span>

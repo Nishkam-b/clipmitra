@@ -55,7 +55,21 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware, allow_origins=list(s.cors_origins),
         allow_methods=["GET", "POST", "PUT"], allow_headers=["*"],
+        # The hosted UI (https://nishtek.in/clipmitra) calls this engine on 127.0.0.1:
+        # Chrome's Private Network Access preflight must be answered explicitly.
+        allow_private_network=True,
     )
+
+    @app.middleware("http")
+    async def _only_known_sites(request: Request, call_next):
+        """Browsers let ANY website send simple POSTs (e.g. multipart uploads) to 127.0.0.1 without a
+        CORS preflight. Reject requests from pages that are not the ClipMitra UI. Requests without an
+        Origin (curl, scripts on this machine, same-origin GETs) are allowed."""
+        origin = request.headers.get("origin")
+        if origin and origin not in s.cors_origins:
+            return JSONResponse(status_code=403, content={"code": "forbidden_origin",
+                                                          "message": "This website is not allowed to use ClipMitra."})
+        return await call_next(request)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):

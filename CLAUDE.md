@@ -34,7 +34,7 @@ Read `PROJECT_PLAN.md` first; it has the phase status and hardware facts.
 ```powershell
 ./scripts/setup.ps1              # venv + pip deps + npm install
 ./scripts/dev-backend.ps1        # uvicorn on 127.0.0.1:8000
-./scripts/dev-frontend.ps1       # next dev on :3000
+./scripts/dev-frontend.ps1       # next dev: http://localhost:3000/clipmitra/
 backend/.venv/Scripts/python -m pytest backend/tests
 backend/.venv/Scripts/python scripts/verify_stack.py   # GPU / FFmpeg / Ollama / Whisper smoke test
 ./scripts/make_sample_video.ps1                         # 3.5 min speech test video -> backend/temp/

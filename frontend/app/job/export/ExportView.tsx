@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertIcon, ArrowLeftIcon, CheckIcon, DownloadIcon, Spinner } from "@/components/icons";
 import { exportZipUrl, getClips, getJob, mediaUrl, type Clip, type Job } from "@/lib/api";
 
 export default function ExportView() {
-  const { id } = useParams<{ id: string }>();
+  const id = useSearchParams().get("id") ?? "";
   const [job, setJob] = useState<Job | null>(null);
   const [clips, setClips] = useState<Clip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function ExportView() {
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-8 lg:px-10">
       <nav className="mb-6 flex items-center gap-2 text-sm font-medium text-zinc-500">
-        <Link href={`/jobs/${id}`} className="inline-flex items-center gap-1.5 hover:text-violet-700">
+        <Link href={`/job?id=${id}`} className="inline-flex items-center gap-1.5 hover:text-violet-700">
           <ArrowLeftIcon width={16} height={16} /> Your clips
         </Link>
         <span>›</span><span className="text-zinc-800">Export</span>
@@ -64,7 +64,7 @@ export default function ExportView() {
                     {c.status !== "ready" && <span className="text-violet-700">{c.status}</span>}
                   </div>
                 </div>
-                <Link href={`/clips/${c.clip_id}/edit`} className="rounded-lg px-3 py-2 text-sm font-medium text-violet-700 hover:bg-violet-50">Edit</Link>
+                <Link href={`/edit?id=${c.clip_id}`} className="rounded-lg px-3 py-2 text-sm font-medium text-violet-700 hover:bg-violet-50">Edit</Link>
                 <a href={mediaUrl(c.download_url)} download
                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
                   <DownloadIcon width={16} height={16} /> MP4

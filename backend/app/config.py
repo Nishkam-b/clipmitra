@@ -63,7 +63,9 @@ class Settings(BaseSettings):
     worker_enabled: bool = True             # tests disable it to exercise the API without a GPU
 
     # --- http ---
-    cors_origins: tuple[str, ...] = ("http://localhost:3000", "http://127.0.0.1:3000")
+    # Pages allowed to use this engine: the hosted UI + local dev server. Everything else gets 403.
+    cors_origins: tuple[str, ...] = ("https://nishtek.in", "https://www.nishtek.in",
+                                     "http://localhost:3000", "http://127.0.0.1:3000")
 
     def ensure_dirs(self) -> None:
         for d in (self.upload_dir, self.output_dir, self.temp_dir, self.model_dir, self.db_path.parent):

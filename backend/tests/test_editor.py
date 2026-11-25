@@ -102,6 +102,26 @@ def test_cors_preflight_allows_put_from_frontend(client):
     assert r.status_code == 200 and "PUT" in r.headers["access-control-allow-methods"]
 
 
+def test_hosted_ui_allowed_including_private_network_preflight(client):
+    r = client.options("/api/upload", headers={
+        "Origin": "https://nishtek.in", "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Private-Network": "true"})
+    assert r.status_code == 200
+    assert r.headers["access-control-allow-origin"] == "https://nishtek.in"
+    assert r.headers.get("access-control-allow-private-network") == "true"
+    assert client.get("/api/health", headers={"Origin": "https://nishtek.in"}).status_code == 200
+
+
+def test_other_websites_are_rejected(client, tmp_media):
+    from tests.test_upload import make_video
+    vid = make_video(tmp_media / "evil.mp4", 2, color="black")
+    with vid.open("rb") as fh:  # a "simple" cross-site POST browsers send without preflight
+        r = client.post("/api/upload", files={"file": ("x.mp4", fh, "video/mp4")},
+                        headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403 and r.json()["code"] == "forbidden_origin"
+    assert client.get("/api/health").status_code == 200  # no Origin (local scripts) still fine
+
+
 def test_regenerate_blocked_while_clip_renders(ready_clip):
     client, cid, jid = ready_clip
     client.app.state.db.update_clip(cid, status="rendering")
