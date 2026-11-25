@@ -14,6 +14,7 @@ from app.api.routes import router
 from app.config import get_settings
 from app.models.db import Database
 from app.services.uploads import sweep_expired
+from app.services.fetch import FetchWorker
 from app.workers.pipeline import Worker, sweep_jobs
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -37,13 +38,18 @@ async def lifespan(app: FastAPI):
     s = get_settings()
     app.state.db = Database(s.db_path)
     app.state.worker = None
+    app.state.fetcher = None
     if s.worker_enabled:
         app.state.worker = Worker(app.state.db)
         app.state.worker.start()
+        app.state.fetcher = FetchWorker(app.state.db)
+        app.state.fetcher.start()
     task = asyncio.create_task(_retention_loop(app))
     yield
     if app.state.worker:
         app.state.worker.stop()
+    if app.state.fetcher:
+        app.state.fetcher.stop()
     task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await task

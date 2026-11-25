@@ -58,33 +58,49 @@ async def ingest_upload(file: UploadFile, db: Database) -> UploadOut:
                 fh.write(chunk)
         if size == 0:
             raise MediaError("empty_file", "The uploaded file is empty.")
-
-        digest = sha.hexdigest()
-        existing = db.get_upload_by_hash(digest)
-        if existing and upload_path(existing["id"], existing["ext"]).exists():
-            return to_out(existing, duplicate=True)
-        if existing:  # stale record whose file was swept: drop it and re-ingest
-            db.delete_upload(existing["id"])
-
-        info = probe_video(tmp, ext)
-        limit = s.max_duration_seconds + s.duration_tolerance_seconds
-        if info.duration_seconds > limit:
-            mins = s.max_duration_seconds / 60
-            raise MediaError(
-                "too_long", f"Video is longer than {mins:g} minutes. Please trim it and try again."
-            )
-        if not info.has_audio:
-            raise MediaError("no_audio", "The video has no audio track, so it can't be transcribed.")
-
-        upload_id = uuid.uuid4().hex
-        tmp.replace(upload_path(upload_id, ext))
-        rec = dict(id=upload_id, sha256=digest, filename=filename, ext=ext,
-                   size_bytes=size, video=info.model_dump(), created_at=time.time())
-        db.insert_upload(**rec)
-        return to_out(rec)
+        return finalize_file(tmp, filename, ext, size, sha.hexdigest(), db)
     finally:
         tmp.unlink(missing_ok=True)
         await file.close()
+
+
+def finalize_file(tmp: Path, filename: str, ext: str, size: int, digest: str, db: Database) -> UploadOut:
+    """Validate a complete video file and store it as an upload (shared by uploads and link fetches).
+
+    Moves `tmp` into uploads/ on success; the caller deletes `tmp` if anything raises.
+    """
+    s = get_settings()
+    existing = db.get_upload_by_hash(digest)
+    if existing and upload_path(existing["id"], existing["ext"]).exists():
+        return to_out(existing, duplicate=True)
+    if existing:  # stale record whose file was swept: drop it and re-ingest
+        db.delete_upload(existing["id"])
+
+    info = probe_video(tmp, ext)
+    limit = s.max_duration_seconds + s.duration_tolerance_seconds
+    if info.duration_seconds > limit:
+        mins = s.max_duration_seconds / 60
+        raise MediaError(
+            "too_long", f"Video is longer than {mins:g} minutes. Please trim it and try again."
+        )
+    if not info.has_audio:
+        raise MediaError("no_audio", "The video has no audio track, so it can't be transcribed.")
+
+    upload_id = uuid.uuid4().hex
+    tmp.replace(upload_path(upload_id, ext))
+    rec = dict(id=upload_id, sha256=digest, filename=filename, ext=ext,
+               size_bytes=size, video=info.model_dump(), created_at=time.time())
+    db.insert_upload(**rec)
+    return to_out(rec)
+
+
+def sha256_file(path: Path) -> tuple[str, int]:
+    h, size = hashlib.sha256(), 0
+    with path.open("rb") as fh:
+        while chunk := fh.read(CHUNK):
+            h.update(chunk)
+            size += len(chunk)
+    return h.hexdigest(), size
 
 
 def sweep_expired(db: Database) -> int:

@@ -91,6 +91,22 @@ class ClipOut(BaseModel):
     download_url: str
 
 
+class FetchIn(BaseModel):
+    url: str
+    confirm_rights: bool = False  # must be True: "I own this video or have permission to use it"
+
+
+class FetchOut(BaseModel):
+    fetch_id: str
+    url: str
+    status: str            # queued | downloading | completed | failed
+    progress: float
+    title: str | None
+    upload: UploadOut | None
+    error_code: str | None
+    error_message: str | None
+
+
 class ClipEditIn(BaseModel):
     start_time: float
     end_time: float

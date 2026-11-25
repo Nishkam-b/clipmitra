@@ -57,6 +57,19 @@ CREATE TABLE IF NOT EXISTS clips (
     created_at      REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS clips_job ON clips(job_id);
+CREATE TABLE IF NOT EXISTS fetches (
+    id             TEXT PRIMARY KEY,
+    url            TEXT NOT NULL,
+    rights_confirmed_at REAL NOT NULL,      -- user ticked "I own this video or have permission"
+    status         TEXT NOT NULL,           -- queued | downloading | completed | failed
+    progress       REAL NOT NULL DEFAULT 0,
+    title          TEXT,
+    upload_id      TEXT,
+    error_code     TEXT,
+    error_message  TEXT,
+    created_at     REAL NOT NULL,
+    updated_at     REAL NOT NULL
+);
 """
 
 ACTIVE = ("queued", "extracting_audio", "transcribing", "finding_highlights",
@@ -183,6 +196,24 @@ class Database:
         if fields:
             cols = ", ".join(f"{k} = ?" for k in fields)
             self._x(f"UPDATE clips SET {cols} WHERE id = ?", (*fields.values(), clip_id))
+
+    # ---------- link fetches ----------
+    def create_fetch(self, fetch_id: str, url: str) -> None:
+        now = time.time()
+        self._x("INSERT INTO fetches (id, url, rights_confirmed_at, status, created_at, updated_at) "
+                "VALUES (?,?,?,?,?,?)", (fetch_id, url, now, "queued", now, now))
+
+    def get_fetch(self, fetch_id: str) -> dict[str, Any] | None:
+        rows = self._q("SELECT * FROM fetches WHERE id = ?", (fetch_id,))
+        return rows[0] if rows else None
+
+    def update_fetch(self, fetch_id: str, **fields: Any) -> None:
+        fields["updated_at"] = time.time()
+        cols = ", ".join(f"{k} = ?" for k in fields)
+        self._x(f"UPDATE fetches SET {cols} WHERE id = ?", (*fields.values(), fetch_id))
+
+    def pending_fetches(self) -> list[dict[str, Any]]:
+        return self._q("SELECT * FROM fetches WHERE status IN ('queued', 'downloading') ORDER BY created_at")
 
     def pending_clip_renders(self) -> list[dict[str, Any]]:
         return self._q("SELECT * FROM clips WHERE status IN ('queued', 'rendering') ORDER BY created_at")

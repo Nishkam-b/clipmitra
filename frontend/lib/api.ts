@@ -34,6 +34,35 @@ export class ApiError extends Error {
   }
 }
 
+export type FetchResult = {
+  fetch_id: string;
+  url: string;
+  status: "queued" | "downloading" | "completed" | "failed";
+  progress: number;
+  title: string | null;
+  upload: UploadResult | null;
+  error_code: string | null;
+  error_message: string | null;
+};
+
+export const startFetch = (url: string) =>
+  fetch(`${API_URL}/api/fetch`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url, confirm_rights: true }),
+  }).then(async (r) => {
+    const body = await r.json().catch(() => null);
+    if (!r.ok) throw new ApiError(body?.code ?? "error", body?.message ?? "Couldn't fetch this link.");
+    return body as FetchResult;
+  });
+
+export const getFetch = (id: string) =>
+  fetch(`${API_URL}/api/fetch/${id}`, { cache: "no-store" }).then(async (r) => {
+    const body = await r.json().catch(() => null);
+    if (!r.ok) throw new ApiError(body?.code ?? "error", body?.message ?? "Couldn't check the download.");
+    return body as FetchResult;
+  });
+
 export async function getSystem(signal?: AbortSignal): Promise<SystemStatus> {
   const r = await fetch(`${API_URL}/api/system`, { signal, cache: "no-store" });
   if (!r.ok) throw new ApiError("system_error", "Could not read system status.");

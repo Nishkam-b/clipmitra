@@ -3,9 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import {
-  ApiError, formatBytes, formatDuration, startProcessing, thumbnailUrl, uploadVideo, type UploadResult,
+  ApiError, formatBytes, formatDuration, getFetch, startFetch, startProcessing, thumbnailUrl, uploadVideo,
+  type FetchResult, type UploadResult,
 } from "@/lib/api";
-import { CheckIcon, CloudUpIcon, SparkIcon, UploadIcon, XIcon } from "./icons";
+import { CheckIcon, CloudUpIcon, DownloadIcon, LinkIcon, SparkIcon, UploadIcon, XIcon } from "./icons";
 
 const MAX_MINUTES = 5;
 const MAX_BYTES = 2 * 1024 ** 3;
@@ -66,6 +67,7 @@ export function UploadCard() {
       {state.kind === "done" ? (
         <UploadedFile result={state.result} onReset={reset} />
       ) : (
+        <div className="grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1fr]">
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
@@ -102,8 +104,84 @@ export function UploadCard() {
             />
           )}
         </div>
+        <div className="flex items-center justify-center">
+          <span className="grid h-10 w-10 place-items-center rounded-full border border-zinc-200 bg-white text-xs font-semibold text-zinc-500">OR</span>
+        </div>
+        <LinkPanel disabled={state.kind !== "idle"} onDone={(result) => setState({ kind: "done", result })} />
+        </div>
       )}
     </section>
+  );
+}
+
+type LinkState =
+  | { kind: "idle"; error?: string }
+  | { kind: "fetching"; fetch: FetchResult };
+
+/** Paste a link (YouTube, Instagram, X, Vimeo, direct file…). The engine downloads it with yt-dlp. */
+function LinkPanel({ disabled, onDone }: { disabled: boolean; onDone: (r: UploadResult) => void }) {
+  const [url, setUrl] = useState("");
+  const [rights, setRights] = useState(false);
+  const [st, setSt] = useState<LinkState>({ kind: "idle" });
+
+  const go = async () => {
+    try {
+      let f = await startFetch(url.trim());
+      setSt({ kind: "fetching", fetch: f });
+      while (f.status === "queued" || f.status === "downloading") {
+        await new Promise((r) => setTimeout(r, 1000));
+        f = await getFetch(f.fetch_id);
+        setSt({ kind: "fetching", fetch: f });
+      }
+      if (f.status === "completed" && f.upload) onDone(f.upload);
+      else setSt({ kind: "idle", error: f.error_message ?? "Couldn't fetch this video." });
+    } catch (e) {
+      setSt({ kind: "idle", error: e instanceof ApiError ? e.message : "Couldn't fetch this video." });
+    }
+  };
+
+  const canGo = !disabled && st.kind === "idle" && rights && /^https?:\/\/\S+\.\S+/.test(url.trim());
+
+  return (
+    <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-8 text-center">
+      <LinkIcon width={44} height={44} className="text-violet-600" />
+      <h2 className="mt-3 flex items-center gap-2 text-2xl font-bold tracking-tight text-zinc-900">
+        Paste a Video Link
+        <span className="rounded-full bg-violet-600 px-2 py-0.5 text-xs font-semibold text-white">New</span>
+      </h2>
+      <p className="mt-1.5 text-sm text-zinc-500">YouTube, Instagram, Facebook, X, Vimeo and more</p>
+
+      {st.kind === "fetching" ? (
+        <div className="mt-6 w-full max-w-sm text-left">
+          <div className="truncate text-sm font-semibold text-zinc-800">{st.fetch.title ?? st.fetch.url}</div>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-violet-100">
+            <div className={`h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-[width] duration-500 ${st.fetch.status === "queued" ? "animate-pulse" : ""}`}
+                 style={{ width: `${Math.max(4, Math.round(st.fetch.progress * 100))}%` }} />
+          </div>
+          <div className="mt-2 flex justify-between text-sm text-zinc-500">
+            <span>{st.fetch.status === "queued" ? "Checking the link…" : st.fetch.progress >= 1 ? "Checking video…" : "Downloading…"}</span>
+            <span className="tabular-nums">{Math.round(st.fetch.progress * 100)}%</span>
+          </div>
+        </div>
+      ) : (
+        <form className="mt-5 w-full max-w-sm" onSubmit={(e) => { e.preventDefault(); if (canGo) go(); }}>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} disabled={disabled} type="url" inputMode="url"
+                 placeholder="https://www.youtube.com/watch?v=…" aria-label="Video link"
+                 className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-[15px] outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+          <label className="mt-3 flex items-start gap-2 text-left text-xs text-zinc-600">
+            <input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} className="mt-0.5 accent-violet-600" />
+            I own this video or have permission to use it.
+          </label>
+          <button type="submit" disabled={!canGo}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-100 px-5 py-3 font-semibold text-violet-800 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-50">
+            <DownloadIcon width={18} height={18} /> Fetch Video
+          </button>
+          {st.kind === "idle" && st.error && (
+            <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{st.error}</p>
+          )}
+        </form>
+      )}
+    </div>
   );
 }
 

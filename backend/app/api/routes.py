@@ -15,9 +15,10 @@ from starlette.background import BackgroundTask
 
 from app.config import get_settings
 from app.models.db import ACTIVE
-from app.models.schemas import (ClipEditIn, ClipOut, EditorOut, EditorWord, ErrorOut, FontOut, JobOut, ProcessIn,
-                                StageOut, SystemOut, UploadOut)
+from app.models.schemas import (ClipEditIn, ClipOut, EditorOut, EditorWord, ErrorOut, FetchIn, FetchOut, FontOut,
+                                JobOut, ProcessIn, StageOut, SystemOut, UploadOut)
 from app.services import captions, fonts
+from app.services import fetch as fetch_svc
 from app.services.highlights import MIN_WORD_PROB
 from app.services.media import MediaError, make_thumbnail
 from app.services.system import system_status
@@ -56,6 +57,36 @@ async def upload(request: Request, file: UploadFile = File(...)):
     except MediaError as e:
         status = 413 if e.code in ("file_too_large", "too_long") else 400
         return error(status, e.code, e.message)
+
+
+def _fetch_out(request: Request, f: dict) -> FetchOut:
+    up = _upload_rec(request, f["upload_id"]) if f["upload_id"] else None
+    return FetchOut(fetch_id=f["id"], url=f["url"], status=f["status"], progress=f["progress"], title=f["title"],
+                    upload=to_out(up) if up else None, error_code=f["error_code"], error_message=f["error_message"])
+
+
+@router.post("/fetch", response_model=FetchOut, responses={400: {"model": ErrorOut}})
+def fetch_link(body: FetchIn, request: Request):
+    """Fetch a video from a link. The user must confirm they own it or have permission."""
+    if not body.confirm_rights:
+        return error(400, "rights_not_confirmed",
+                     "Please confirm you own this video or have permission to use it.")
+    try:
+        url = fetch_svc.validate_url(body.url)
+    except fetch_svc.FetchError as e:
+        return error(400, e.code, e.message)
+    db, fw = request.app.state.db, request.app.state.fetcher
+    fid = fetch_svc.new_fetch_id()
+    db.create_fetch(fid, url)
+    if fw:
+        fw.submit(fid)
+    return _fetch_out(request, db.get_fetch(fid))
+
+
+@router.get("/fetch/{fetch_id}", response_model=FetchOut, responses={404: {"model": ErrorOut}})
+def get_fetch(fetch_id: str, request: Request):
+    f = request.app.state.db.get_fetch(fetch_id) if _ID.match(fetch_id) else None
+    return _fetch_out(request, f) if f else _not_found("Fetch")
 
 
 def _upload_rec(request: Request, upload_id: str) -> dict | None:

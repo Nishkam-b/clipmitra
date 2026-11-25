@@ -33,8 +33,9 @@ export default function CreateClipsPage() {
         </span>
       </h1>
       <p className="mt-5 max-w-2xl text-lg leading-relaxed text-zinc-500">
-        Upload a video, and AI will find the best moments, add captions, reframe the speaker,
-        and create 3–4 ready-to-post clips — all on your own computer.
+        Upload a video or paste a link from YouTube, Instagram or any supported platform, and AI will find
+        the best moments, add captions, reframe the speaker and create 3–4 ready-to-post clips — all on your
+        own computer.
       </p>
 
       <div className="mt-9"><EngineGate><UploadCard /></EngineGate></div>
