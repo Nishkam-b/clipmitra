@@ -59,11 +59,16 @@ $tools = @(
   @{ cmd = "deno"; id = "DenoLand.Deno" },
   @{ cmd = "uv"; id = "astral-sh.uv" }
 )
+Refresh-Path   # this window may predate tools installed elsewhere (or by an earlier run)
 foreach ($t in $tools) {
-  if ((Has $t.cmd) -or ($t.extra -and (Test-Path $t.extra))) { Ok "$($t.cmd): already installed"; continue }
+  $present = { (Has $t.cmd) -or ($t.extra -and (Test-Path $t.extra)) }
+  if (& $present) { Ok "$($t.cmd): already installed"; continue }
   Write-Host "    installing $($t.id)…"
-  Run "winget" @("install", "--id", $t.id, "-e", "--silent", "--accept-source-agreements", "--accept-package-agreements")
+  $p = Start-Process -FilePath "winget" -NoNewWindow -Wait -PassThru -ArgumentList @(
+    "install", "--id", $t.id, "-e", "--silent", "--accept-source-agreements", "--accept-package-agreements")
   Refresh-Path
+  # winget returns non-zero for "already installed / no newer version" — what matters is that the tool exists now
+  if (-not (& $present)) { throw "Installing $($t.id) failed (winget exit $($p.ExitCode)). Install it manually and run this again." }
   Ok "$($t.cmd): installed"
 }
 Refresh-Path
