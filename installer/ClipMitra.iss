@@ -22,6 +22,11 @@ DefaultDirName={localappdata}\ClipMitra\setup
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+; Inno Setup enables Windows' RedirectionGuard by default, and child processes inherit it. uv keeps its
+; Python behind a user-created junction (cpython-3.12-... -> cpython-3.12.16-...), which then fails with
+; "untrusted mount point" (os error 448). This setup never elevates and only writes to the user's own
+; folders, so the guard (aimed at privilege-escalation via redirected paths) adds no protection here.
+RedirectionGuard=no
 OutputBaseFilename=ClipMitra-Setup
 OutputDir=Output
 Compression=lzma2
@@ -47,7 +52,8 @@ Source: "clipmitra.ico"; DestDir: "{app}"; Flags: ignoreversion
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{localappdata}\ClipMitra\app\scripts\start_clipmitra.ps1"""; Description: "Start ClipMitra now"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\ClipMitra\app\scripts\stop_clipmitra.ps1"""; Flags: runhidden; RunOnceId: "StopEngine"
+; Stop the engine wherever ClipMitra was installed (files can't be removed while it runs).
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object {{ $p = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $_.OwningProcess); if ($p.CommandLine -match 'uvicorn\s+app\.main:app') {{ Stop-Process -Id $p.ProcessId -Force } }"""; Flags: runhidden waituntilterminated; RunOnceId: "StopEngine"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\ClipMitra\app"

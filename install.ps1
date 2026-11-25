@@ -23,7 +23,10 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $Host.UI.RawUI.WindowTitle = "Installing ClipMitra AI"
+New-Item -ItemType Directory -Force $InstallRoot | Out-Null
+try { Start-Transcript -Path (Join-Path $InstallRoot "install.log") -Force | Out-Null } catch { }  # for support
 trap {
+  try { Write-Host ($_ | Out-String) } catch { }   # full error (with line number) goes into install.log
   Write-Host "`nClipMitra could not be installed:" -ForegroundColor Red
   Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   Write-Host "`nCheck your internet connection and run the installer again. If it keeps failing, see"
@@ -44,8 +47,15 @@ function Run($exe, [string[]]$argv) {
   # Native tools print progress on stderr; only the exit code decides success.
   # Start-Process does not quote arguments: quote any with spaces (e.g. C:\Users\First Last\...).
   $quoted = $argv | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }
-  $p = Start-Process -FilePath $exe -ArgumentList $quoted -NoNewWindow -Wait -PassThru
-  if ($p.ExitCode -ne 0) { throw "$exe $($argv -join ' ') failed (exit $($p.ExitCode))" }
+  # Capture the tool's own output so it lands in install.log (the transcript doesn't see child output).
+  $out = [IO.Path]::GetTempFileName(); $err = [IO.Path]::GetTempFileName()
+  $p = Start-Process -FilePath $exe -ArgumentList $quoted -NoNewWindow -Wait -PassThru `
+         -RedirectStandardOutput $out -RedirectStandardError $err
+  $text = ((Get-Content $out -Raw -ErrorAction SilentlyContinue) + (Get-Content $err -Raw -ErrorAction SilentlyContinue))
+  Remove-Item $out, $err -ErrorAction SilentlyContinue
+  $lines = @($text -split "`r?`n" | Where-Object { $_.Trim() })
+  if ($lines) { $lines | Select-Object -Last 15 | ForEach-Object { Write-Host "      $_" -ForegroundColor DarkGray } }
+  if ($p.ExitCode -ne 0) { throw "$exe $($argv -join ' ') failed (exit $($p.ExitCode)): $($lines | Select-Object -Last 3)" }
 }
 
 Write-Host "ClipMitra AI installer" -ForegroundColor White

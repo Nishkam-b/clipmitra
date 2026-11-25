@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
-import { MonitorIcon, Spinner } from "./icons";
+import { DownloadIcon, MonitorIcon, Spinner } from "./icons";
 
 /**
  * The web UI is hosted (nishtek.in/clipmitra) but all processing happens on the visitor's own
@@ -20,6 +20,30 @@ function CopyCommand({ text }: { text: string }) {
               className="shrink-0 border-l border-zinc-200 px-3 text-xs font-semibold text-violet-700 hover:bg-violet-50">
         {copied ? "Copied" : "Copy"}
       </button>
+    </div>
+  );
+}
+
+const SETUP_URL = "https://github.com/Nishkam-b/clipmitra/releases/latest/download/ClipMitra-Setup.exe";
+
+/** First-time install: one download button; the PowerShell one-liner stays available for power users. */
+function InstallBox() {
+  return (
+    <div className="rounded-2xl bg-zinc-50 p-4">
+      <div className="text-sm font-semibold text-zinc-900">First time? Install it (free)</div>
+      <a href={SETUP_URL}
+         className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 px-4 py-3 font-semibold text-white shadow-lg shadow-violet-500/25 hover:brightness-110">
+        <DownloadIcon width={18} height={18} /> Download ClipMitra for Windows
+      </a>
+      <ol className="mt-3 space-y-1 text-xs text-zinc-600">
+        <li><b>1.</b> Open <b>ClipMitra-Setup.exe</b> and click <b>Install</b> (about 5–15 min, downloads ~4 GB).</li>
+        <li><b>2.</b> If Windows says <i>“Windows protected your PC”</i>, click <b>More info → Run anyway</b>.</li>
+        <li><b>3.</b> Come back here — this page connects automatically.</li>
+      </ol>
+      <details className="mt-3 text-xs text-zinc-500">
+        <summary className="cursor-pointer hover:text-violet-700">Prefer PowerShell?</summary>
+        <CopyCommand text={INSTALL_CMD} />
+      </details>
     </div>
   );
 }
@@ -73,10 +97,8 @@ export function EngineGate({ children }: { children: React.ReactNode }) {
           <li><b>2.</b> Set <b>Local network access</b> (or “Apps on this device”) to <b>Allow</b>.</li>
           <li><b>3.</b> Reload this page.</li>
         </ol>
-        <div className="mt-5 max-w-xl rounded-2xl bg-white p-4">
-          <div className="text-sm font-semibold text-zinc-900">Haven&apos;t installed ClipMitra yet? It&apos;s free</div>
-          <p className="mt-1 text-sm text-zinc-600">Open <b>PowerShell</b> and paste:</p>
-          <CopyCommand text={INSTALL_CMD} />
+        <div className="mt-5 max-w-md">
+          <InstallBox />
         </div>
       </section>
     );
@@ -103,11 +125,7 @@ export function EngineGate({ children }: { children: React.ReactNode }) {
                   asks to allow access to apps on this device, choose <b>Allow</b>.
                 </p>
               </div>
-              <div className="rounded-2xl bg-zinc-50 p-4">
-                <div className="text-sm font-semibold text-zinc-900">First time? Install it (free)</div>
-                <p className="mt-1 text-sm text-zinc-600">Open <b>PowerShell</b> and paste:</p>
-                <CopyCommand text={INSTALL_CMD} />
-              </div>
+              <InstallBox />
             </div>
             <p className="mt-5 text-xs text-zinc-400">
               Windows 10/11 · NVIDIA GPU with 6 GB+ recommended (works on CPU, slower) · about 8 GB of disk ·{" "}
